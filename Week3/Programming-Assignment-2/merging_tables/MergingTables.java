@@ -2,6 +2,7 @@ import java.io.*;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.StringTokenizer;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class MergingTables {
     private final InputReader reader;
@@ -13,6 +14,7 @@ public class MergingTables {
     }
 
     public static void main(String[] args) {
+        long startTime = System.currentTimeMillis();
         InputReader reader = new InputReader(System.in);
         OutputWriter writer = new OutputWriter(System.out);
         new MergingTables(reader, writer).run();
@@ -22,30 +24,42 @@ public class MergingTables {
     class Table {
         Table parent;
         int rank;
-        int numberOfRows;
+        long numberOfRows;
 
-        Table(int numberOfRows) {
+        Table(long numberOfRows) {
             this.numberOfRows = numberOfRows;
             rank = 0;
             parent = this;
         }
         Table getParent() {
-            // find super parent and compress path
-            return parent;
+            while(parent != parent.parent) { 
+                parent = parent.parent; // set parent to grandparent to enable path compression
+            }
+            return parent; // return parent which should now be the root parent
         }
     }
 
-    int maximumNumberOfRows = -1;
+    long maximumNumberOfRows = -1;
 
-    void merge(Table destination, Table source) {
-        Table realDestination = destination.getParent();
-        Table realSource = source.getParent();
-        if (realDestination == realSource) {
+    void merge(Table destination, Table source) { // Impt. Deal solely with the root tables!
+        Table realDestination = destination.getParent(); // Get root parent of destination table
+        Table realSource = source.getParent(); // Get root parent of source table
+        if (realDestination == realSource) { // If same root return
             return;
         }
-        // merge two components here
-        // use rank heuristic
-        // update maximumNumberOfRows
+
+        if(realSource.rank < realDestination.rank) { // Compare ranks and set smaller tree to hang on larger tree
+          realSource.parent = realDestination; 
+          realDestination.numberOfRows += realSource.numberOfRows; // transfer rows from smaller to larger table
+          realSource.numberOfRows = 0;  
+          maximumNumberOfRows = Math.max(realDestination.numberOfRows, maximumNumberOfRows); // Compare new table row with current max
+        } else {
+          realDestination.parent = realSource;
+          realSource.numberOfRows += realDestination.numberOfRows;
+          realDestination.numberOfRows = 0;
+          maximumNumberOfRows = Math.max(realSource.numberOfRows, maximumNumberOfRows);
+          if(realSource.rank == realDestination.rank) realSource.rank += 1;
+        }
     }
 
     public void run() {
@@ -53,7 +67,7 @@ public class MergingTables {
         int m = reader.nextInt();
         Table[] tables = new Table[n];
         for (int i = 0; i < n; i++) {
-            int numberOfRows = reader.nextInt();
+            long numberOfRows = reader.nextInt();
             tables[i] = new Table(numberOfRows);
             maximumNumberOfRows = Math.max(maximumNumberOfRows, numberOfRows);
         }
@@ -64,7 +78,6 @@ public class MergingTables {
             writer.printf("%d\n", maximumNumberOfRows);
         }
     }
-
 
     static class InputReader {
         public BufferedReader reader;
