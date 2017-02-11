@@ -10,6 +10,8 @@ public class HashChains {
     private PrintWriter out;
     // store all strings in one list
     private List<String> elems;
+    // Store in hashmap
+    private ArrayList<String>[] hashMap;
     // for hash function
     private int bucketCount;
     private int prime = 1000000007;
@@ -43,40 +45,91 @@ public class HashChains {
         // out.flush();
     }
 
-    private void processQuery(Query query) {
+    private boolean findString (String str) {
+        int index = hashFunc(str);
+        ArrayList<String> list = hashMap[index];
+        for(String s : list) {
+            // System.out.println("string: " + s);
+            if(s.equals(str)) {
+                return true;
+            }
+        }        
+        return false;
+    }
+
+    private void processQueryFast(Query query) {
         switch (query.type) {
             case "add":
-                if (!elems.contains(query.s))
-                    elems.add(0, query.s);
+            //add to hashtable
+                if(!findString(query.s)) {
+                    int index = hashFunc(query.s);
+                    ArrayList<String> sList = hashMap[hashFunc(query.s)];
+                    sList.add(0,query.s);
+                }            
                 break;
             case "del":
-                if (elems.contains(query.s))
-                    elems.remove(query.s);
+            // delete from hashtable
+                hashMap[hashFunc(query.s)].remove(query.s);
                 break;
             case "find":
-                writeSearchResult(elems.contains(query.s));
+            // look from hashtable
+                writeSearchResult(findString(query.s));
                 break;
             case "check":
-                for (String cur : elems)
-                    if (hashFunc(cur) == query.ind)
-                        out.print(cur + " ");
+            // look at list with index given in query
+                ArrayList<String> list = hashMap[query.ind];
+                for(String cur : list) {
+                    out.print(cur + " ");
+                }
                 out.println();
-                // Uncomment the following if you want to play with the program interactively.
-                // out.flush();
                 break;
             default:
                 throw new RuntimeException("Unknown query: " + query.type);
         }
     }
 
+// Naive method
+    // private void processQuery(Query query) {
+    //     switch (query.type) {
+    //         case "add":
+    //             if (!elems.contains(query.s))
+    //                 elems.add(0, query.s);
+    //             break;
+    //         case "del":
+    //             if (elems.contains(query.s))
+    //                 elems.remove(query.s);
+    //             break;
+    //         case "find":
+    //             writeSearchResult(elems.contains(query.s));
+    //             break;
+    //         case "check":
+    //             for (String cur : elems)
+    //                 if (hashFunc(cur) == query.ind)
+    //                     out.print(cur + " ");
+    //             out.println();
+    //             // Uncomment the following if you want to play with the program interactively.
+    //             // out.flush();
+    //             break;
+    //         default:
+    //             throw new RuntimeException("Unknown query: " + query.type);
+    //     }
+    // }
+
     public void processQueries() throws IOException {
         elems = new ArrayList<>();
+
         in = new FastScanner();
         out = new PrintWriter(new BufferedOutputStream(System.out));
         bucketCount = in.nextInt();
+        hashMap = (ArrayList<String>[])new ArrayList[bucketCount];
+        for(int i=0; i<bucketCount; i++) {
+            hashMap[i] = new ArrayList<String>();
+        }        
         int queryCount = in.nextInt();
         for (int i = 0; i < queryCount; ++i) {
-            processQuery(readQuery());
+            Query q = readQuery();
+            // processQuery(q); naive method
+            processQueryFast(q);
         }
         out.close();
     }
