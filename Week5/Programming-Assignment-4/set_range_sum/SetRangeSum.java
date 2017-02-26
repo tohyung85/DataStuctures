@@ -1,5 +1,7 @@
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+
 
 public class SetRangeSum {
 
@@ -141,14 +143,14 @@ public class SetRangeSum {
         VertexPair result = new VertexPair();
         VertexPair findAndRoot = find(root, key);
         root = findAndRoot.right;
-        result.right = findAndRoot.left;
+        result.right = findAndRoot.left; // node with key or next node with key larger than 'key'
         if (result.right == null) {
             result.left = root;
             return result;
         }
-        result.right = splay(result.right);
-        result.left = result.right.left;
-        result.right.left = null;
+        result.right = splay(result.right); // bring node with key to the root
+        result.left = result.right.left; 
+        result.right.left = null; // right node contains key or next node with key larger than 'key'
         if (result.left != null) {
             result.left.parent = null;
         }
@@ -173,7 +175,7 @@ public class SetRangeSum {
 
     Vertex root = null;
 
-    void insert(int x) {
+    void insert(int x) {        
         Vertex left = null;
         Vertex right = null;
         Vertex new_vertex = null;
@@ -187,17 +189,29 @@ public class SetRangeSum {
     }
 
     void erase(int x) {
-        // Implement erase yourself
-
+        // Implement erase yourself        
+        if(find(x)) {
+            VertexPair leftRight = split(root, x);
+            VertexPair noXPair = split(leftRight.right, x+1);
+            root = merge(leftRight.left, noXPair.right);
+        }
     }
 
     boolean find(int x) {
         // Implement find yourself
-
-        return false;
+        VertexPair leftRight = find(root, x);
+        root = leftRight.right;
+        if(leftRight.left == null || leftRight.left.key != x) return false;
+        return true;
     }
 
     long sum(int from, int to) {
+        if(to < from) {
+            int tmp = to;
+            to = from;
+            from = tmp;
+        }
+
         VertexPair leftMiddle = split(root, from);
         Vertex left = leftMiddle.left;
         Vertex middle = leftMiddle.right;
@@ -206,10 +220,12 @@ public class SetRangeSum {
         Vertex right = middleRight.right;
         long ans = 0;
         // Complete the implementation of sum
+        ans = middle == null ? 0 : middle.sum;
 
+        left = merge(left, middle);
+        root = merge(left, right);
         return ans;
     }
-
 
     public static final int MODULO = 1000000001;
 
@@ -231,7 +247,7 @@ public class SetRangeSum {
                     int x = nextInt();
                     out.println(find((x + last_sum_result) % MODULO) ? "Found" : "Not found");
                 } break;
-                case 's' : {
+                case 's' : {                    
                     int l = nextInt();
                     int r = nextInt();
                     long res = sum((l + last_sum_result) % MODULO, (r + last_sum_result) % MODULO);
@@ -247,8 +263,104 @@ public class SetRangeSum {
         out = new PrintWriter(System.out);
         solve();
         out.close();
+
+        // stressTest();
     }
 
+/*
+    // Stress Test
+    void stressTest() {        
+        char[] operators = {'+', '-', '?', 's'};
+        int numOperations = 10;
+        int max_i = 1000000000;
+        while(true) {
+            System.out.println("----New Test Case----");
+            ArrayList<Integer> ar = new ArrayList<Integer>(); 
+            int last_sum_result = 0;
+            root= null;
+            for(int i=0; i<numOperations; i++) {
+                char type = operators[ThreadLocalRandom.current().nextInt(0, 4)];    
+                switch (type) {
+                    case '+' : {
+                        int x = ThreadLocalRandom.current().nextInt(0, max_i);
+                        System.out.println(type + " " + x);
+                        insert((x + last_sum_result) % MODULO);
+                        if(ar.indexOf((x + last_sum_result) % MODULO) == -1) {
+                            ar.add((x + last_sum_result) % MODULO);    
+                        }                        
+                        print_tree();
+                    } break;
+                    case '-' : {
+                        int x = ThreadLocalRandom.current().nextInt(0, max_i);
+                        System.out.println(type + " " + x);
+                        erase((x + last_sum_result) % MODULO);
+                        if(ar.indexOf((x + last_sum_result) % MODULO) != -1) {
+                            ar.remove(ar.indexOf((x + last_sum_result) % MODULO));
+                        }
+                        print_tree();
+                    } break;
+                    case '?' : {
+                        int x = ThreadLocalRandom.current().nextInt(0, max_i);
+                        System.out.println(type + " " + x);
+                        String fast= find((x + last_sum_result) % MODULO) ? "Found" : "Not found";
+                        String slow= ar.indexOf((x + last_sum_result) % MODULO) != -1 ? "Found" : "Not found";
+                        if(fast != slow) {
+                            System.out.println("Different results found! " + "fast: " + fast + " slow: " + slow);
+                            return;
+                        }
+                        print_tree();
+                    } break;
+                    case 's' : {                    
+                        int l = ThreadLocalRandom.current().nextInt(0, max_i);
+                        int r = ThreadLocalRandom.current().nextInt(0, max_i);
+                        System.out.println(type + " " + l + " " + r);
+                        int newL = (l + last_sum_result) % MODULO;
+                        int newR = (r + last_sum_result) % MODULO;
+                        long res = sum((l + last_sum_result) % MODULO, (r + last_sum_result) % MODULO);
+                        long slowRes = 0;
+                        if(newL > newR) {
+                            int tmp = newR;
+                            newR = newL;
+                            newL = tmp;
+                        }
+                        for(Integer num : ar) {
+                            if(num >= newL && num <= newR) slowRes += num;
+                        }
+                        if(res != slowRes) {
+                            System.out.println("Different results found! " + "fast: " + res + " slow: " + slowRes);
+                            return;
+                        } else {
+                            System.out.println("Sum: " + res);
+                        }
+                        last_sum_result = (int)(res % MODULO);
+                        print_tree();
+                    }
+                }
+            }    
+        }
+    }
+
+//Print tree for testing
+    void print_tree() {
+        String s = "";
+        traverse_tree(root, s);
+        System.out.println("");
+    }
+
+    void traverse_tree(Vertex node, String s) {
+        if(node == null) return;
+        System.out.print(node.key + " ");
+        if(node.parent != null) System.out.print("p: " + node.parent.key + " ");
+        if(node.left != null) {
+            System.out.print("l:");
+            traverse_tree(node.left, s);
+        }
+        if(node.right != null) {
+            System.out.print("r:");
+            traverse_tree(node.right, s);
+        }
+    }
+*/
     public static void main(String[] args) throws IOException {
         new SetRangeSum();
     }
